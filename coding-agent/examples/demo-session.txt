@@ -1,0 +1,149 @@
+# Captured deterministic CLI session (real file tools and real Bash)
+
+$ python3 -m agent start --model demo --mode safe --run-id example
+run_id: example
+status: wait_plan
+phase: plan
+mode: safe
+[ ] inspect: Прочитать код и тесты
+[ ] fix: Исправить формулу и валидацию скидки
+[ ] test: Запустить unittest через Bash
+budget: {"model_calls": 3, "tool_calls": 4, "side_effects": 0, "result_bytes": 675} / {"model_calls": 40, "tool_calls": 100, "side_effects": 20, "result_bytes": 131072}
+{
+  "goal": "Исправить процентную скидку и проверить результат, не меняя тесты.",
+  "tasks": [
+    {
+      "id": "inspect",
+      "description": "Прочитать код и тесты",
+      "depends_on": [],
+      "tools": [
+        "list_files",
+        "read_file"
+      ],
+      "result": {
+        "kind": "read",
+        "paths": [
+          "order.py",
+          "test_order.py"
+        ]
+      }
+    },
+    {
+      "id": "fix",
+      "description": "Исправить формулу и валидацию скидки",
+      "depends_on": [
+        "inspect"
+      ],
+      "tools": [
+        "write_file",
+        "read_file"
+      ],
+      "result": {
+        "kind": "file",
+        "paths": [
+          "order.py"
+        ]
+      }
+    },
+    {
+      "id": "test",
+      "description": "Запустить unittest через Bash",
+      "depends_on": [
+        "fix"
+      ],
+      "tools": [
+        "Bash",
+        "read_file"
+      ],
+      "result": {
+        "kind": "tests",
+        "paths": [],
+        "command": "python3 -m unittest -v",
+        "cwd": "."
+      }
+    }
+  ],
+  "risks": [
+    "Нельзя менять test_order.py; Bash запускает Python с правами пользователя."
+  ],
+  "assumptions": [
+    "Скидка — процент от суммы цен; допустим диапазон от 0 до 100 включительно."
+  ],
+  "done_when": "Все задачи подтверждены runtime, исходные тесты прошли через Bash."
+}
+Next: python3 -m agent approve-plan example
+
+$ python3 -m agent approve-plan example
+run_id: example
+status: wait_action
+phase: execute
+mode: safe
+[x] inspect: Прочитать код и тесты
+[>] fix: Исправить формулу и валидацию скидки
+[ ] test: Запустить unittest через Bash
+budget: {"model_calls": 6, "tool_calls": 8, "side_effects": 0, "result_bytes": 1289} / {"model_calls": 40, "tool_calls": 100, "side_effects": 20, "result_bytes": 131072}
+Action awaiting approval: write_file
+{
+  "path": "order.py",
+  "content": "def calculate_total(prices: list[float], discount_percent: float) -> float:\n    if not 0 <= discount_percent <= 100:\n        raise ValueError(\"discount_percent must be between 0 and 100\")\n    return sum(prices) * (1 - discount_percent / 100)\n",
+  "task_id": "fix"
+}
+Next: python3 -m agent approve example (or deny)
+
+$ python3 -m agent approve example
+run_id: example
+status: wait_action
+phase: execute
+mode: safe
+[x] inspect: Прочитать код и тесты
+[x] fix: Исправить формулу и валидацию скидки
+[>] test: Запустить unittest через Bash
+budget: {"model_calls": 8, "tool_calls": 10, "side_effects": 1, "result_bytes": 1427} / {"model_calls": 40, "tool_calls": 100, "side_effects": 20, "result_bytes": 131072}
+Action awaiting approval: Bash
+{
+  "command": "python3 -m unittest -v",
+  "cwd": ".",
+  "task_id": "test"
+}
+Next: python3 -m agent approve example (or deny)
+
+$ python3 -m agent approve example
+run_id: example
+status: completed
+phase: execute
+mode: safe
+[x] inspect: Прочитать код и тесты
+[x] fix: Исправить формулу и валидацию скидки
+[x] test: Запустить unittest через Bash
+budget: {"model_calls": 10, "tool_calls": 11, "side_effects": 2, "result_bytes": 1783} / {"model_calls": 40, "tool_calls": 100, "side_effects": 20, "result_bytes": 131072}
+Исправлены процентная скидка и проверка диапазона. Тесты прошли через Bash; test_order.py не изменён.
+
+$ python3 -m agent tasks example
+[x] inspect: Прочитать код и тесты
+[x] fix: Исправить формулу и валидацию скидки
+[x] test: Запустить unittest через Bash
+
+$ python3 -m agent diff example
+
+File: order.py
+before: 47d5084158b601c1cf17f5d1953cca29a5eba240d412fcde18ad60f450416f2e
+after: dc0a7f51a10c205c30555777ca4d594995d28c5f5d12b8d943cd3e7cfd416903
+--- a/order.py
++++ b/order.py
+@@ -1,2 +1,4 @@
+ def calculate_total(prices: list[float], discount_percent: float) -> float:
+-    return sum(prices) - discount_percent
++    if not 0 <= discount_percent <= 100:
++        raise ValueError("discount_percent must be between 0 and 100")
++    return sum(prices) * (1 - discount_percent / 100)
+
+
+$ python3 -m agent rollback example
+run_id: example
+status: rolled_back
+phase: execute
+mode: safe
+[x] inspect: Прочитать код и тесты
+[x] fix: Исправить формулу и валидацию скидки
+[x] test: Запустить unittest через Bash
+budget: {"model_calls": 10, "tool_calls": 11, "side_effects": 2, "result_bytes": 1783} / {"model_calls": 40, "tool_calls": 100, "side_effects": 20, "result_bytes": 131072}
