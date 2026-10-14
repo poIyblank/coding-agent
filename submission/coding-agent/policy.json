@@ -1,0 +1,13 @@
+{
+  "commands": {
+    "allow": ["python3 -m unittest -v", "python3 -m unittest", "pwd"],
+    "deny": ["rm -rf .", "bash -c pwd"]
+  },
+  "directories": {
+    "allow": ["."],
+    "deny": ["private"]
+  },
+  "read_only": ["test_*.py", "*/test_*.py", "*_test.py", "*/tests/*"],
+  "bash_timeout": 10,
+  "max_output_bytes": 16384
+}
